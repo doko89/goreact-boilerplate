@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import { Check, Plus, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { ApiError } from "../../../shared/lib/api";
 import { createOrder, listOrders, setOrderStatus } from "../api";
 import type { Order } from "../api";
@@ -86,7 +88,8 @@ export function OrdersPage() {
             onChange={(e) => setQty(e.target.value)}
           />
         </label>
-        <button type="submit" className="btn">
+        <button type="submit" className="btn inline-flex items-center gap-2">
+          <Plus className="size-4" aria-hidden="true" />
           Add order
         </button>
       </form>
@@ -111,32 +114,45 @@ export function OrdersPage() {
             </tr>
           </thead>
           <tbody>
-            {orders.map((o) => (
-              <tr key={o.id}>
-                <td>{o.item}</td>
-                <td>{o.qty}</td>
-                <td>
-                  <span className={`badge ${o.status}`}>{o.status}</span>
-                </td>
-                <td className="muted">{new Date(o.createdAt).toLocaleString()}</td>
-                <td className="actions">
-                  {o.status === "open" && (
-                    <>
-                      <button type="button" className="btn btn-small" onClick={() => onStatus(o.id, "done")}>
-                        Done
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-small btn-secondary"
-                        onClick={() => onStatus(o.id, "cancelled")}
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  )}
-                </td>
-              </tr>
-            ))}
+            <AnimatePresence initial={false}>
+              {orders.map((o) => (
+                <motion.tr
+                  key={o.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <td>{o.item}</td>
+                  <td>{o.qty}</td>
+                  <td>
+                    <span className={`badge ${o.status}`}>{o.status}</span>
+                  </td>
+                  <td className="muted">{new Date(o.createdAt).toLocaleString()}</td>
+                  <td className="actions">
+                    {o.status === "open" && (
+                      <>
+                        <button
+                          type="button"
+                          className="btn btn-small inline-flex items-center gap-1"
+                          onClick={() => onStatus(o.id, "done")}
+                        >
+                          <Check className="size-4" aria-hidden="true" />
+                          Done
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-small btn-secondary inline-flex items-center gap-1"
+                          onClick={() => onStatus(o.id, "cancelled")}
+                        >
+                          <X className="size-4" aria-hidden="true" />
+                          Cancel
+                        </button>
+                      </>
+                    )}
+                  </td>
+                </motion.tr>
+              ))}
+            </AnimatePresence>
           </tbody>
         </table>
       )}
