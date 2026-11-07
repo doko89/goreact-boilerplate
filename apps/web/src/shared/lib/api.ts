@@ -91,3 +91,21 @@ export async function api<T>(path: string, opts: ApiOptions = {}, retried = fals
   }
   return (await res.json()) as T;
 }
+
+/** POSTs multipart FormData with cookies + CSRF. No Content-Type: the browser sets the boundary. */
+export async function apiForm<T>(path: string, form: FormData, retried = false): Promise<T> {
+  const headers: Record<string, string> = {};
+  const token = await ensureCsrf(false);
+  if (token) {
+    headers["X-CSRF-Token"] = token;
+  }
+  const res = await fetch(path, { method: "POST", headers, body: form, credentials: "include" });
+  if (res.status === 403 && !retried) {
+    await ensureCsrf(true);
+    return apiForm<T>(path, form, true);
+  }
+  if (!res.ok) {
+    throw toApiError(res.status, await parseJson(res));
+  }
+  return (await res.json()) as T;
+}

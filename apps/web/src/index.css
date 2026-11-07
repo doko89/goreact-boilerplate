@@ -141,6 +141,57 @@ h1 {
   font-size: 0.85rem;
 }
 
+.btn-block {
+  display: block;
+  width: 100%;
+  text-align: center;
+  text-decoration: none;
+}
+
+a.btn-block {
+  line-height: 1.5;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.tab {
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+}
+
+.tab.active {
+  color: var(--text);
+  background: var(--surface);
+  border-color: var(--text);
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 0.25rem 0 1rem;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--border);
+}
+
 .error {
   color: var(--danger);
   font-size: 0.9rem;
@@ -189,4 +240,56 @@ h1 {
 .badge.cancelled {
   background: #f3d7d4;
   color: #7a1f19;
+}
+
+.profile-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+}
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatar.large {
+  width: 96px;
+  height: 96px;
+}
+
+.avatar.placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #d8dce0;
+  color: #3c4043;
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.avatar.large.placeholder {
+  font-size: 2rem;
+}
+
+.card.profile {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.success {
+  color: var(--accent);
+  font-size: 0.9rem;
 }

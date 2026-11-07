@@ -58,6 +58,7 @@ func newTestAppWithFS(t *testing.T, dist fs.FS) *fiber.App {
 		SessionTTL:    time.Hour,
 		AdminUser:     "admin",
 		AdminPass:     "admin123",
+		UploadDir:     filepath.Join(t.TempDir(), "uploads"),
 	}
 	pool, err := db.Open("sqlite", filepath.Join(t.TempDir(), "app.db"), "")
 	if err != nil {
@@ -65,7 +66,7 @@ func newTestAppWithFS(t *testing.T, dist fs.FS) *fiber.App {
 	}
 	t.Cleanup(func() { pool.Close() })
 	ctx := t.Context()
-	if err := db.Migrate(ctx, pool); err != nil {
+	if err := db.Migrate(ctx, pool, "sqlite"); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.SeedAdmin(ctx, sqlcgen.New(pool), cfg.AdminUser, cfg.AdminPass, bcrypt.MinCost); err != nil {
@@ -294,6 +295,42 @@ func TestOrdersFlow(t *testing.T) {
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusConflict {
 		t.Fatalf("re-transition: expected 409, got %d", resp.StatusCode)
+	}
+}
+
+func TestAuthMethodsDisabledByDefault(t *testing.T) {
+	app := newTestApp(t)
+	resp := do(t, app, jsonReq(t, http.MethodGet, "/api/auth/methods", ""))
+	body := readBody(t, resp)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	if body["password"] != true {
+		t.Fatalf("password must always be true: %v", body)
+	}
+	for _, key := range []string{"oidc", "ldap"} {
+		m, ok := body[key].(map[string]any)
+		if !ok || m["enabled"] != false {
+			t.Fatalf("%s must be disabled by default: %v", key, body)
+		}
+	}
+}
+
+func TestDisabledExternalLogins404(t *testing.T) {
+	app := newTestApp(t)
+	j := newJar()
+	fetchCSRF(t, app, j)
+
+	for _, req := range []*http.Request{
+		jsonReq(t, http.MethodGet, "/api/auth/oidc/login", ""),
+		jsonReq(t, http.MethodGet, "/api/auth/oidc/callback?code=x&state=y", ""),
+		unsafeReq(t, j, http.MethodPost, "/api/auth/ldap/login", `{"username":"u","password":"p"}`),
+	} {
+		resp := do(t, app, req)
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusNotFound {
+			t.Fatalf("%s %s: expected 404, got %d", req.Method, req.URL.Path, resp.StatusCode)
+		}
 	}
 }
 

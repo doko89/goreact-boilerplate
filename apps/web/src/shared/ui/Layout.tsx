@@ -17,7 +17,16 @@ export function Layout() {
           Boilerplate
         </Link>
         <div className="nav-right">
-          <span className="muted">{auth.user?.username}</span>
+          <Link to="/profile" className="profile-link" aria-label="Profile">
+            {auth.user?.avatarUrl ? (
+              <img className="avatar" src={auth.user.avatarUrl} alt="" />
+            ) : (
+              <span className="avatar placeholder" aria-hidden="true">
+                {(auth.user?.username ?? "?").slice(0, 1).toUpperCase()}
+              </span>
+            )}
+            <span className="muted">{auth.user?.username}</span>
+          </Link>
           <button type="button" className="btn btn-secondary" onClick={onLogout}>
             Logout
           </button>

@@ -2,7 +2,7 @@ API_DIR := apps/api
 WEB_DIR := apps/web
 BIN := bin/api
 
-.PHONY: setup dev dev-api dev-web build build-web build-api run test vet sqlc clean smoke
+.PHONY: setup dev dev-api dev-web build build-web build-api build-linux-arm64 run test vet sqlc clean smoke
 
 setup: ## Download Go modules and install npm deps
 	cd $(API_DIR) && go mod download
@@ -27,7 +27,10 @@ build-web: ## Build SPA and copy bundle into the API embed dir
 	cp -r $(WEB_DIR)/dist/assets $(API_DIR)/web/dist/assets
 
 build-api: ## Build single binary (serves API + embedded SPA)
-	cd $(API_DIR) && go build -o ../../$(BIN) ./cmd/api
+	cd $(API_DIR) && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o ../../$(BIN) ./cmd/api
+
+build-linux-arm64: build-web ## Cross build for linux/arm64 -> ./bin/api-linux-arm64
+	cd $(API_DIR) && CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags="-s -w" -o ../../bin/api-linux-arm64 ./cmd/api
 
 build: build-web build-api ## Full production build -> ./bin/api
 

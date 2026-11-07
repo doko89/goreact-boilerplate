@@ -3,8 +3,10 @@
 package httpserver
 
 import (
+	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"io/fs"
 	"strings"
 
@@ -28,7 +30,8 @@ import (
 )
 
 // contentSecurityPolicy locks the SPA to same-origin resources.
-// style-src needs 'unsafe-inline' for React inline styles.
+// style-src needs 'unsafe-inline' for React inline styles; img-src allows
+// https: for remote provider avatars (e.g. Google pictures).
 const contentSecurityPolicy = "default-src 'self'; " +
 	"base-uri 'self'; " +
 	"frame-ancestors 'none'; " +
@@ -36,7 +39,7 @@ const contentSecurityPolicy = "default-src 'self'; " +
 	"object-src 'none'; " +
 	"script-src 'self'; " +
 	"style-src 'self' 'unsafe-inline'; " +
-	"img-src 'self' data:; " +
+	"img-src 'self' data: https:; " +
 	"font-src 'self'; " +
 	"connect-src 'self'"
 
@@ -56,9 +59,40 @@ func NewWithFS(cfg config.Config, pool *sql.DB, dist fs.FS) (*fiber.App, error) 
 	queries := sqlcgen.New(pool)
 	sessions := session.New(cfg.SessionSecret, cfg.SessionTTL, cfg.IsProd())
 
+	var oidcProvider authapp.OIDCProvider
+	if cfg.OIDC.Enabled {
+		p, err := authinfra.NewOIDCProvider(context.Background(),
+			cfg.OIDC.Issuer, cfg.OIDC.ClientID, cfg.OIDC.ClientSecret, cfg.OIDC.RedirectURL)
+		if err != nil {
+			return nil, fmt.Errorf("oidc discovery: %w", err)
+		}
+		oidcProvider = p
+	}
+
+	var ldapAuth authapp.LDAPAuthenticator
+	if cfg.LDAP.Enabled {
+		ldapAuth = authinfra.NewLDAPAuthenticator(cfg.LDAP)
+	}
+
+	var avatarStorage authapp.AvatarStorage
+	switch cfg.StorageDriver {
+	case "s3":
+		s3store, err := authinfra.NewS3AvatarStorage(context.Background(), cfg.S3)
+		if err != nil {
+			return nil, fmt.Errorf("s3 storage: %w", err)
+		}
+		avatarStorage = s3store
+	default: // local
+		disk, err := authinfra.NewDiskAvatarStorage(cfg.UploadDir)
+		if err != nil {
+			return nil, err
+		}
+		avatarStorage = disk
+	}
+
 	authSvc := authapp.NewService(authinfra.NewSQLUserRepository(queries), authinfra.NewBcryptHasher())
 	orderSvc := orderapp.NewService(orderinfra.NewSQLOrderRepository(queries))
-	authHandler := authpres.NewHandler(authSvc, sessions)
+	authHandler := authpres.NewHandler(authSvc, sessions, oidcProvider, cfg.OIDC.Label, ldapAuth, cfg.LDAP.Label, avatarStorage, cfg.IsProd())
 	orderHandler := orderpres.NewHandler(orderSvc)
 
 	app := fiber.New(fiber.Config{
@@ -88,7 +122,11 @@ func NewWithFS(cfg config.Config, pool *sql.DB, dist fs.FS) (*fiber.App, error) 
 
 	auth := api.Group("/auth")
 	auth.Post("/login", authHandler.Login)
+	auth.Post("/ldap/login", authHandler.LDAPLogin)
 	auth.Get("/csrf", authHandler.CSRF)
+	auth.Get("/methods", authHandler.Methods)
+	auth.Get("/oidc/login", authHandler.OIDCSignIn)
+	auth.Get("/oidc/callback", authHandler.OIDCCallback)
 	auth.Get("/me", sessions.AuthRequired, authHandler.Me)
 	auth.Post("/logout", sessions.AuthRequired, authHandler.Logout)
 
@@ -96,6 +134,11 @@ func NewWithFS(cfg config.Config, pool *sql.DB, dist fs.FS) (*fiber.App, error) 
 	orders.Get("/", orderHandler.List)
 	orders.Post("/", orderHandler.Create)
 	orders.Patch("/:id/status", orderHandler.SetStatus)
+
+	uploads := api.Group("/uploads", sessions.AuthRequired)
+	uploads.Post("/avatar", authHandler.UploadAvatar)
+
+	app.Get("/uploads/*", serveUploads(avatarStorage))
 
 	app.Use(static.New("/", static.Config{
 		FS:     dist,

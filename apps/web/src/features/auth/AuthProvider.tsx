@@ -1,13 +1,14 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { loginRequest, logoutRequest, meRequest } from "./api";
-import type { LoginInput, User } from "./api";
+import type { LoginInput, PasswordMethod, User } from "./api";
 
 type AuthContextValue = {
   user: User | null;
   loading: boolean;
-  login: (input: LoginInput) => Promise<void>;
+  login: (input: LoginInput, method: PasswordMethod) => Promise<void>;
   logout: () => Promise<void>;
+  refresh: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -47,8 +48,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  async function login(input: LoginInput): Promise<void> {
-    const u = await loginRequest(input);
+  async function login(input: LoginInput, method: PasswordMethod): Promise<void> {
+    const u = await loginRequest(input, method);
     setUser(u);
   }
 
@@ -57,5 +58,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }
 
-  return <AuthContext.Provider value={{ user, loading, login, logout }}>{children}</AuthContext.Provider>;
+  async function refresh(): Promise<void> {
+    try {
+      setUser(await meRequest());
+    } catch {
+      setUser(null);
+    }
+  }
+
+  return <AuthContext.Provider value={{ user, loading, login, logout, refresh }}>{children}</AuthContext.Provider>;
 }

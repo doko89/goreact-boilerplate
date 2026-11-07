@@ -52,10 +52,47 @@ func Open(driver, sqlitePath, databaseURL string) (*sql.DB, error) {
 	}
 }
 
-// Migrate executes the idempotent schema. Safe to run on every boot.
-func Migrate(ctx context.Context, pool *sql.DB) error {
+// Migrate executes the idempotent schema plus additive column patches for
+// databases created by older boilerplate versions. Safe to run on every boot.
+func Migrate(ctx context.Context, pool *sql.DB, driver string) error {
 	if _, err := pool.ExecContext(ctx, schema); err != nil {
 		return fmt.Errorf("migrate: %w", err)
+	}
+	if err := ensureAvatarURLColumn(ctx, pool, driver); err != nil {
+		return err
+	}
+	return nil
+}
+
+func ensureAvatarURLColumn(ctx context.Context, pool *sql.DB, driver string) error {
+	const alter = `ALTER TABLE users ADD COLUMN avatar_url TEXT NOT NULL DEFAULT ''`
+	if driver == "postgres" {
+		_, err := pool.ExecContext(ctx, `ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT NOT NULL DEFAULT ''`)
+		return err
+	}
+	rows, err := pool.QueryContext(ctx, `PRAGMA table_info(users)`)
+	if err != nil {
+		return fmt.Errorf("migrate inspect users: %w", err)
+	}
+	defer rows.Close()
+	var (
+		cid, notnull, pk int
+		name, typ        string
+		dflt             sql.NullString
+	)
+	for rows.Next() {
+		if err := rows.Scan(&cid, &name, &typ, &notnull, &dflt, &pk); err != nil {
+			return fmt.Errorf("migrate scan users: %w", err)
+		}
+		if name == "avatar_url" {
+			return nil
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("migrate inspect users: %w", err)
+	}
+	if _, err := pool.ExecContext(ctx, alter); err != nil {
+		return fmt.Errorf("migrate add avatar_url: %w", err)
 	}
 	return nil
 }
@@ -78,6 +115,7 @@ func SeedAdmin(ctx context.Context, q *sqlcgen.Queries, username, password strin
 		Username:     username,
 		PasswordHash: string(hash),
 		CreatedAt:    time.Now().UTC().Format(time.RFC3339),
+		AvatarUrl:    "",
 	})
 	if err != nil {
 		return fmt.Errorf("seed create admin: %w", err)

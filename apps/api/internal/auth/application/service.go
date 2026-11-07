@@ -21,8 +21,9 @@ type Hasher interface {
 
 // UserDTO is the public shape of an authenticated user.
 type UserDTO struct {
-	ID       string `json:"id"`
-	Username string `json:"username"`
+	ID        string `json:"id"`
+	Username  string `json:"username"`
+	AvatarURL string `json:"avatarUrl"`
 }
 
 // LoginInput carries raw login fields.
@@ -61,7 +62,7 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (UserDTO, error) {
 	if !s.hasher.Verify(u.PasswordHash, in.Password) {
 		return UserDTO{}, ErrInvalidCredentials
 	}
-	return UserDTO{ID: u.ID, Username: u.Username}, nil
+	return toUserDTO(u), nil
 }
 
 // Me returns the public profile of an authenticated user id.
@@ -70,5 +71,9 @@ func (s *Service) Me(ctx context.Context, userID string) (UserDTO, error) {
 	if err != nil {
 		return UserDTO{}, err
 	}
-	return UserDTO{ID: u.ID, Username: u.Username}, nil
+	return toUserDTO(u), nil
+}
+
+func toUserDTO(u *domain.User) UserDTO {
+	return UserDTO{ID: u.ID, Username: u.Username, AvatarURL: u.AvatarURL}
 }

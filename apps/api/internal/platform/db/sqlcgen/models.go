@@ -4,6 +4,13 @@
 
 package sqlcgen
 
+type OidcLink struct {
+	UserID    string `json:"user_id"`
+	Issuer    string `json:"issuer"`
+	Sub       string `json:"sub"`
+	CreatedAt string `json:"created_at"`
+}
+
 type Order struct {
 	ID        string `json:"id"`
 	UserID    string `json:"user_id"`
@@ -18,4 +25,5 @@ type User struct {
 	Username     string `json:"username"`
 	PasswordHash string `json:"password_hash"`
 	CreatedAt    string `json:"created_at"`
+	AvatarUrl    string `json:"avatar_url"`
 }

@@ -56,6 +56,7 @@ func (r *SQLUserRepository) Create(ctx context.Context, u *domain.User) error {
 		Username:     u.Username,
 		PasswordHash: u.PasswordHash,
 		CreatedAt:    u.CreatedAt.UTC().Format(time.RFC3339),
+		AvatarUrl:    u.AvatarURL,
 	})
 	if err != nil {
 		if isUniqueViolation(err) {
@@ -71,6 +72,28 @@ func (r *SQLUserRepository) Count(ctx context.Context) (int64, error) {
 	return r.q.CountUsers(ctx)
 }
 
+// FindUserByOIDC returns the user linked to the identity or domain.ErrOIDCNotFound.
+func (r *SQLUserRepository) FindUserByOIDC(ctx context.Context, issuer, sub string) (*domain.User, error) {
+	link, err := r.q.GetOIDCLink(ctx, sqlcgen.GetOIDCLinkParams{Issuer: issuer, Sub: sub})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, domain.ErrOIDCNotFound
+		}
+		return nil, err
+	}
+	return r.FindByID(ctx, link.UserID)
+}
+
+// SaveOIDCLink persists the user-to-identity binding.
+func (r *SQLUserRepository) SaveOIDCLink(ctx context.Context, link *domain.OIDCLink) error {
+	return r.q.CreateOIDCLink(ctx, sqlcgen.CreateOIDCLinkParams{
+		UserID:    link.UserID,
+		Issuer:    link.Issuer,
+		Sub:       link.Sub,
+		CreatedAt: link.CreatedAt.UTC().Format(time.RFC3339),
+	})
+}
+
 func toUser(row sqlcgen.User) (*domain.User, error) {
 	createdAt, err := time.Parse(time.RFC3339, row.CreatedAt)
 	if err != nil {
@@ -81,7 +104,13 @@ func toUser(row sqlcgen.User) (*domain.User, error) {
 		Username:     row.Username,
 		PasswordHash: row.PasswordHash,
 		CreatedAt:    createdAt,
+		AvatarURL:    row.AvatarUrl,
 	}, nil
+}
+
+// SetAvatarURL updates the user's avatar URL.
+func (r *SQLUserRepository) SetAvatarURL(ctx context.Context, userID, url string) error {
+	return r.q.UpdateUserAvatar(ctx, sqlcgen.UpdateUserAvatarParams{AvatarUrl: url, ID: userID})
 }
 
 func isUniqueViolation(err error) bool {

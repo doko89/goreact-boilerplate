@@ -14,7 +14,7 @@ Go (Fiber 3, sqlc) + React (Vite, TS strict) monorepo. One binary serves API + e
 - `domain` is pure: no fiber/sql/os imports. Interfaces live in `domain`, implemented in `infrastructure`.
 - Errors: `apperr.Invalid(field, msg)` → 400, `ErrOrderNotFound` → 404, `ErrNotOpen` → 409, bad credentials → 401. Never leak internal errors (generic 500).
 - SQL must run on **both** sqlite and postgres: TEXT ids, BIGINT ints, RFC3339 TEXT timestamps, `$1` placeholders. Schema auto-migrates on boot.
-- Security invariants (covered by `server_test.go`, keep them green): HttpOnly `session` cookie, CSRF header on unsafe `/api/*` methods, CSP on API + static responses.
+- Security invariants (covered by `server_test.go`/`oidc_test.go`/`uploads_test.go`, keep them green): HttpOnly `session` cookie, CSRF header on unsafe `/api/*` methods, CSP on API + static responses. OIDC/LDAP stay disabled by default; external users carry empty password hashes and can never password-login. Uploads validate webp magic + size server-side; `/uploads/*` serving is allowlisted (no raw path join) on both storage drivers.
 
 ## Frontend (`apps/web`)
 

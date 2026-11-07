@@ -40,7 +40,7 @@ func run() error {
 	if err := pool.PingContext(ctx); err != nil {
 		return fmt.Errorf("ping db: %w", err)
 	}
-	if err := db.Migrate(ctx, pool); err != nil {
+	if err := db.Migrate(ctx, pool, cfg.DBDriver); err != nil {
 		return err
 	}
 	if err := db.SeedAdmin(ctx, queriesOf(pool), cfg.AdminUser, cfg.AdminPass, bcrypt.DefaultCost); err != nil {

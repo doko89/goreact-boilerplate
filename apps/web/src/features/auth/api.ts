@@ -4,6 +4,7 @@ import { api } from "../../shared/lib/api";
 export const userSchema = z.object({
   id: z.string(),
   username: z.string(),
+  avatarUrl: z.string(),
 });
 export type User = z.infer<typeof userSchema>;
 
@@ -13,8 +14,23 @@ export const loginSchema = z.object({
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
-export async function loginRequest(input: LoginInput): Promise<User> {
-  const res: unknown = await api("/api/auth/login", { method: "POST", body: input });
+export const authMethodsSchema = z.object({
+  password: z.boolean(),
+  oidc: z.object({ enabled: z.boolean(), label: z.string() }),
+  ldap: z.object({ enabled: z.boolean(), label: z.string() }),
+});
+export type AuthMethods = z.infer<typeof authMethodsSchema>;
+
+export type PasswordMethod = "password" | "ldap";
+
+export async function getAuthMethods(): Promise<AuthMethods> {
+  const res: unknown = await api("/api/auth/methods");
+  return authMethodsSchema.parse(res);
+}
+
+export async function loginRequest(input: LoginInput, method: PasswordMethod): Promise<User> {
+  const path = method === "ldap" ? "/api/auth/ldap/login" : "/api/auth/login";
+  const res: unknown = await api(path, { method: "POST", body: input });
   return userSchema.parse(res);
 }
 

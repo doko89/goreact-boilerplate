@@ -21,9 +21,9 @@ func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
 }
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (id, username, password_hash, created_at)
-VALUES ($1, $2, $3, $4)
-RETURNING id, username, password_hash, created_at
+INSERT INTO users (id, username, password_hash, created_at, avatar_url)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, username, password_hash, created_at, avatar_url
 `
 
 type CreateUserParams struct {
@@ -31,6 +31,7 @@ type CreateUserParams struct {
 	Username     string `json:"username"`
 	PasswordHash string `json:"password_hash"`
 	CreatedAt    string `json:"created_at"`
+	AvatarUrl    string `json:"avatar_url"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
@@ -39,6 +40,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		arg.Username,
 		arg.PasswordHash,
 		arg.CreatedAt,
+		arg.AvatarUrl,
 	)
 	var i User
 	err := row.Scan(
@@ -46,12 +48,13 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Username,
 		&i.PasswordHash,
 		&i.CreatedAt,
+		&i.AvatarUrl,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, password_hash, created_at FROM users WHERE id = $1
+SELECT id, username, password_hash, created_at, avatar_url FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
@@ -62,12 +65,13 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 		&i.Username,
 		&i.PasswordHash,
 		&i.CreatedAt,
+		&i.AvatarUrl,
 	)
 	return i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, password_hash, created_at FROM users WHERE username = $1
+SELECT id, username, password_hash, created_at, avatar_url FROM users WHERE username = $1
 `
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
@@ -78,6 +82,21 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 		&i.Username,
 		&i.PasswordHash,
 		&i.CreatedAt,
+		&i.AvatarUrl,
 	)
 	return i, err
+}
+
+const updateUserAvatar = `-- name: UpdateUserAvatar :exec
+UPDATE users SET avatar_url = $1 WHERE id = $2
+`
+
+type UpdateUserAvatarParams struct {
+	AvatarUrl string `json:"avatar_url"`
+	ID        string `json:"id"`
+}
+
+func (q *Queries) UpdateUserAvatar(ctx context.Context, arg UpdateUserAvatarParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserAvatar, arg.AvatarUrl, arg.ID)
+	return err
 }

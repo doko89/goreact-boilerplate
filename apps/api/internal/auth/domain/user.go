@@ -9,4 +9,6 @@ type User struct {
 	Username     string
 	PasswordHash string
 	CreatedAt    time.Time
+	// AvatarURL is "" (none), a local /uploads/... path, or a remote https:// URL.
+	AvatarURL string
 }

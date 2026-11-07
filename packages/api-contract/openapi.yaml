@@ -20,6 +20,85 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Ok"
+  /auth/methods:
+    get:
+      summary: Enabled login methods for the SPA
+      responses:
+        "200":
+          description: Method flags
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthMethods"
+  /auth/oidc/login:
+    get:
+      summary: Start OIDC flow, 302 to provider (404 when disabled)
+      responses:
+        "302":
+          description: Redirect to provider authorization endpoint
+        "404":
+          description: OIDC disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /auth/oidc/callback:
+    get:
+      summary: Complete OIDC flow, sets session cookie, 302 to SPA
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to / on success, /login?error=oidc_failed on failure
+        "404":
+          description: OIDC disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /auth/ldap/login:
+    post:
+      summary: LDAP login, sets HttpOnly session cookie (404 when disabled)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: LDAP disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Username owned by a password account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /auth/login:
     post:
       summary: Login, sets HttpOnly session cookie
@@ -68,6 +147,58 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Ok"
+  /uploads/avatar:
+    post:
+      summary: Upload my avatar (multipart file, webp, max 512 KB)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: Public avatar URL
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url]
+                properties:
+                  url:
+                    type: string
+                    example: /uploads/avatar/9f2c1a9e9f2c1a9e9f2c1a9e9f2c1a9e.webp
+        "400":
+          description: Not a webp image or over the size cap
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FieldError"
+  /uploads/{asset}/{file}:
+    get:
+      summary: Serve an uploaded file (public, immutable)
+      parameters:
+        - name: asset
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [avatar]
+        - name: file
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: image/webp bytes
+        "404":
+          description: Unknown asset, bad name, or missing file
   /orders/:
     get:
       summary: List my orders, newest first
@@ -161,11 +292,32 @@ components:
             type: string
     User:
       type: object
-      required: [id, username]
+      required: [id, username, avatarUrl]
       properties:
         id:
           type: string
         username:
+          type: string
+        avatarUrl:
+          type: string
+          description: Empty, a local /uploads/... path, or a remote https:// URL
+    AuthMethods:
+      type: object
+      required: [password, oidc, ldap]
+      properties:
+        password:
+          type: boolean
+        oidc:
+          $ref: "#/components/schemas/ExternalMethod"
+        ldap:
+          $ref: "#/components/schemas/ExternalMethod"
+    ExternalMethod:
+      type: object
+      required: [enabled, label]
+      properties:
+        enabled:
+          type: boolean
+        label:
           type: string
     LoginRequest:
       type: object

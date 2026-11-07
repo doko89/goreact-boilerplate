@@ -1,5 +1,6 @@
 .env
 bin/
+data/
 node_modules/
 apps/web/dist/
 apps/api/data/
