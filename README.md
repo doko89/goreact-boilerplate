@@ -46,10 +46,11 @@ Rules: `presentation -> application -> domain <- infrastructure`, interfaces in
 ```text
 apps/web/src/
   app/             # router
-  shared/lib/      # api client (cookies + CSRF header + retry), cookie reader
+  shared/lib/      # api client (cookies + CSRF header + retry), cookie reader, webp convert
   shared/ui/       # Layout, RequireAuth
   features/auth/   # api.ts (zod), AuthProvider, pages/LoginPage
   features/order/  # api.ts (zod), pages/OrdersPage
+  features/profile/ # api.ts (upload), pages/ProfilePage
 ```
 
 Features never import each other, only `shared/`. No token in localStorage:
@@ -83,7 +84,8 @@ auth state lives in the HttpOnly cookie, UI state in `AuthProvider`.
 - **CSRF**: Fiber csrf middleware on `/api/*`. SPA reads `csrf_token` cookie
   and sends `X-CSRF-Token` on POST/PATCH; client retries once on rotation.
 - **CSP**: helmet middleware, `default-src 'self'`, `frame-ancestors 'none'`,
-  re-applied on static responses. Same-origin design means no CORS at all.
+  re-applied on static responses. `img-src` additionally allows `https:` for
+  remote provider avatars. Same-origin design means no CORS at all.
 - Passwords: bcrypt. Login errors are uniform (no user enumeration).
 
 ## Login methods
