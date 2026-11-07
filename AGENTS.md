@@ -22,6 +22,11 @@ Go (Fiber 3, sqlc) + React (Vite, TS strict) monorepo. One binary serves API + e
 - All API I/O goes through `shared/lib/api.ts` (cookies + CSRF + one retry). Validate at boundaries with zod. No `any`, no localStorage tokens.
 - TS is strict (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`): fix type errors, don't loosen config.
 
+### Design skills (read before doing the work)
+- Build/change frontend UI: read the `ui-ux-pro-max` skill first.
+- Logo/brand-mark creation: use the `logo-design` skill.
+- Visual polish pass: use the `emil-design-eng` skill.
+
 ## Before commit
 
 - `make vet && make test` must pass. Keep `.env`, `bin/`, `dist/`, `*.db` out of git (already ignored).
